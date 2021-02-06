@@ -2,16 +2,22 @@ import React,{useState} from 'react';
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Slider from '@material-ui/core/Slider';
-
-export default function RangeSlider({entityName,filter,marks,valuetext,handleChange,valueRange}){
+import {useStore} from 'react-redux'
+export default function RangeSlider({entityName,marks,valuetext,handleChange,valueRange}){
     const [show, setShow] = useState(false);
+    const store = useStore();
+    const filterObj = store.getState().filter;
+    let minFilterPrice = filterObj["price-min"]==undefined?valueRange[0]:filterObj["price-min"];
+    let maxFilterPrice = filterObj["price-max"]==undefined?valueRange[1]:filterObj["price-max"];
+    valueRange= [minFilterPrice,maxFilterPrice]
     function valuetext(value) {
         return `$${value}`;
       }
+      
     return (
         <div className="filter-box filter-box-regular" onClick={()=>setShow(!show)}>
-            {(filter.hasOwnProperty(entityName))?
-                <span>{filter[entityName]}</span>:
+            {(filterObj.hasOwnProperty(entityName))?
+                <span>{filterObj[entityName]}</span>:
                 <span style={{"textTransform":"capitalize"}}>{entityName}</span>
             }
             <FontAwesomeIcon icon={faChevronDown} />

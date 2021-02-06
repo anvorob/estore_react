@@ -1,29 +1,18 @@
 import React,{useEffect,useState} from 'react';
-
-function Category({categories}){
-
-  console.log(categories)
+import {useDispatch} from 'react-redux'
+function Category({category}){
+  const dispatch = useDispatch();  
+    if(category==undefined)
+    return "";
+    
     return(
-        <div className="category-column">
-              <img src={require('../images/logo.png')} alt="Brand Logo"/>
-              <div className="categories">
-                {categories.map((cat,index)=><React.Fragment key={index}>
-                                          <span className="category-title">{cat.name}</span>
-                                          <ul className="subcategory-items-list">{cat.subCategory.map((subCat,index)=><li key={index}><a href="#">{subCat.name}</a></li>)}</ul>
-                                      </React.Fragment>)}
-                
-                {/* <ul className="subcategory-items-list">
-                  <li><a href="#">Summer Shoes</a></li>
-                  <li><a href="#">Sneakers</a></li>
-                  <li><a href="#">Leather Shoes</a></li>
-                  <li><a href="#">Sports Shoes</a></li>
-                  <li><a href="#">Sandals</a></li>
-                  <li><a href="#">Slippers</a></li>
-                  <li><a href="#">Boots</a></li>
-                  <li><a href="#">Winter Shoes</a></li>
-                </ul> */}
-              </div>
-            </div>
+      
+      <React.Fragment >
+        <span className="category-title" onClick={()=>dispatch({type:'ADD_TO_FILTER',data:{"category":category.name}})}>{category.name}</span>
+        {category.subCategory &&
+          <ul className="subcategory-items-list">{category.subCategory.map((cat,index)=><Category key={index} category={cat}/>)}</ul>
+        }
+    </React.Fragment>
     );
 
 }

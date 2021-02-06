@@ -81,15 +81,20 @@ input:focus{
   text-decoration:none;
   padding:1rem;
   cursor: pointer;
+  position: relative;
 }
 
 .genderLinks a:hover{
   color:#adadad;
 }
 
+.fav-number{
+  position: absolute;
+  top: 24px;
+}
 .userDetails{
   position: absolute;
-  top: 64px;
+  top: 60px;
   z-index: 99;
   background: white;
   padding:0px!important;
@@ -175,16 +180,17 @@ input:focus{
     flex-wrap: nowrap;
 }
 .category-column{
-  width: 13%;
+  width: 16%;
   float: left;
   margin-top:15px;
+  margin-right: 15px;
   display: flex;
     flex-direction: column;
     align-items: center;
 }
 
 .product-area{
-  width: 87%;
+  width: 84%;
   float: left;
 }
 .category-column a{
@@ -207,8 +213,12 @@ input:focus{
 .category-title{
   text-transform: uppercase;
   font-weight: 500;
+  cursor: pointer;
 }
 
+.category-title:hover{
+  color:#767676;
+}
 .subcategory-items-list{
   list-style: none;
   padding-left:20px;
@@ -260,8 +270,16 @@ input:focus{
     z-index: 999;
     background: white;
 }
+.dropdown-colour-sample{
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  display: inline-block;
+}
 .filter-box-dropdown li{
-  
+  display: flex;
+   
+    justify-content: space-between;
   padding:5px 10px;
 }
 .filter-box-dropdown li:hover,.userDetails li:hover{
@@ -359,6 +377,9 @@ input:focus{
     font-weight: 700; */
     border-radius: 0 3px 3px 0;
     background: white;
+}
+.favourite-icon-empty{
+  color:silver;
 }
 .favourite-icon{
   position: absolute;
@@ -497,13 +518,39 @@ footer .links{
     cursor: pointer;
 }
 
+.prompt-wrapper{
+  position: absolute;
+  left: 50%;
+  width:30%;
+  padding: 10px;
+  background: #79e07966;
+  transform: translateX(-50%);
+}
+
+.cart-summary
+{
+  display: flow-root;
+}
+.cart-summary ul{
+  float: right;
+}
+.cart-summary-total{
+  font-weight: bold;
+}
+.cart-summary span{
+  font-size:20px;
+}
 .cart-wrapper{
   width: 80%;
 }
 .cart-wrapper ul{
-  border-top:1px solid silver;
+  /* border-top:1px solid silver; */
   list-style: none;
   padding-left: 0px;
+}
+
+.cart-item-desc{
+  padding-left:20px;
 }
 .cart-item{
   display: flex;
@@ -592,4 +639,40 @@ form input{
   padding: 7px;
   font-size: 16px;
   border: 1px solid silver;
+}
+
+.page-navigation-wrapper{
+  position: relative;
+  list-style: none;
+  display: flex;
+  align-items: center;
+}
+
+.page-navigation-wrapper li{
+  margin-left:5px;
+  cursor: pointer;
+}
+
+.page-navigation-step{
+  border: 1px solid black;
+  padding: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pagination-container{
+  justify-content: center;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.currentPage{
+  font-size:20px;
+  font-weight: bold;
+}
+
+.disabled{
+  border:1px solid silver ;
+  color: silver;
+  cursor: initial!important;
 }

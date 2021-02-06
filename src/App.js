@@ -1,57 +1,112 @@
   import React,{Suspense, lazy,useEffect,useState} from 'react';
   import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+  import { useDispatch,useStore,connect} from 'react-redux';
   
-  import { Provider } from 'react-redux';
-  import { createStore } from 'redux';
-  import reducer from './redux/reducers';
 
   import Footer from './modules/Footer';
   import Header from './modules/Header';
   import Modal from './modules/Modal';
-  import Category from './modules/Category';
+  import Categories from './modules/Categories';
   import Cart from './modules/Cart';
   import './App.css';
+  import FavoriteProducts from './modules/FavoriteProducts';
   import ProductDetail from './modules/ProductDetail';
   import ProductSearch from './modules/ProductSearch';
+  import ProductEdit from './modules/ProductEdit'
   //import Customer from './modules/Customer';
   import CustomerContainer from './modules/CustomerContainer';
+  import {promptNotification,hideNotification,goToPage,fetchProducts,updateCart,addToFilter} from './redux/actions';
+import product from './redux/rproduct';
 
+  const mapStateToProps =state=>({
+    ...state
+})
+const mapDispatchToProps=dispatch=>({
+    promptNotification:(message)=>dispatch(promptNotification(message)),
+    hideNotification:()=>dispatch(hideNotification()),
+    goToPage:(page) => dispatch(goToPage(page)),
+    fetchProducts:(products)=>dispatch(fetchProducts(products)),
+    updateCart:(cart)=>dispatch(updateCart(cart)),
+    addToFilter:(filterObj)=>dispatch(addToFilter(filterObj))
+})
 
-const store = createStore(reducer);
-
-  function App() {
+  function App({hideNotification,promptNotification,goToPage,fetchProducts,updateCart,addToFilter}) {
 
     const API_URL = 'http://localhost:3001/';
     const [categories, setCategories]= useState([]);
-    const [products, setProducts]= useState([]);
     const [colours, setColours]= useState([]);
     const [brands, setBrands] = useState([]);
-    const [filter, setFilter]= useState({});
     const [cart, setCart] = useState([]);
     const [user, setUser] = useState({});
     const [showModal, setShowModal] = useState(false);
     const [email, setEmail] = useState("");
     const [password,setPassword] = useState("");
     const [showUserDetails,setShowUserDetails] = useState(false);
+    
+    const dispatch = useDispatch();
+    const store = useStore();
+    const filterObj = store.getState().filter;
     useEffect(()=>{
         getCategories();
-        getProducts();
+        if(Object.keys(getUrlVars()).length==0)
+          getProducts();
         getBrands();
         getColours();
         getLocalCustomer();
       },[]);
 
+      useEffect(()=>{
+        const queryString = window.location;
+        let urlObject = getUrlVars();
+        if(Object.keys(urlObject).every(key=>!store.getState().filter.hasOwnProperty(key))){
+          var filterObj = {};
+          Object.keys(urlObject).map(key=> filterObj[key]=urlObject[key]);
+          if(Object.keys(filterObj).length==0)
+          return;
+          // This is hack to delay url params parsing. Initial non filtered quiry comes after filtered.
+          setTimeout(()=>{
+            //dispatch({type:"ADD_TO_FILTER",data:filterObj})
+            addToFilter(filterObj)
+          },500)
+          
+        }
+      },getUrlVars())
+      function getUrlVars() {
+        var vars = {};
+        var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+            vars[key] = value;
+        });
+        return vars;
+    }
     useEffect(()=>{
-      
-      var filterStr = Object.keys(filter).map(key=> key+"="+filter[key]).join('&');
-        console.log(filterStr);
-        getProducts("?"+filterStr);
-      },[filter]);
+      delete(filterObj.requestTimeStamp)
+      var filterStr = Object.keys(filterObj).map(key=> key+"="+filterObj[key]).join('&');
+      if(window.location.pathname!=="/")
+        return ;
+        
+        window.history.replaceState(window.history.state, "Title", filterStr.length==0?"/":"?"+filterStr);
+        if(filterStr.length>0)
+        filterStr="?"+filterStr;
+        console.log(filterStr)
+        getProducts(filterStr);
+      },[filterObj]);
     
       useEffect(()=>{
-         getCart()
+         getCart();
+         getFavorites();
       },[user])
 
+      const getFavorites=async()=>{
+        const response=await fetch(API_URL+"favorite/"+user._id,{
+          method:"GET"
+        })
+        const data = await response.json();
+        console.log("GET FAVS")
+        if(data){
+          dispatch({type:'LOAD_FAVORITE',data:data})
+        }
+      }
+      
       function getLocalCustomer(){
         console.log("HERE in local customer"+localStorage['store_customer']);
         if(localStorage['store_customer']!="" && JSON.stringify(user)===JSON.stringify({}))
@@ -76,6 +131,9 @@ const store = createStore(reducer);
 
         });
         const res = await response.json();
+        //console.log(res)
+        //dispatch({type:'UPDATE_CART',data:res[0]});
+        updateCart(res[0]);
         setCart(res);
       }
       const getCategories=async()=>{
@@ -87,7 +145,13 @@ const store = createStore(reducer);
       const getProducts=async(filter="")=>{
         const response=await fetch(API_URL+"products"+filter)
         const data = await response.json();
-        setProducts(data)
+        fetchProducts(data)
+        if(filterObj.page>Math.ceil(parseInt(data.length)/parseInt(filterObj.offset)))
+        {
+          goToPage(1);
+        }
+        //setProducts(data)
+        getColours();
       };
 
       const getBrands =async()=>{
@@ -98,9 +162,15 @@ const store = createStore(reducer);
       }
 
       const getColours = async()=>{
-        const response = await fetch(API_URL+"colours");
-        const data = await response.json();
-        setColours(data);
+        // const response = await fetch(API_URL+"colours");
+        // const data = await response.json();
+        let colours = store.getState().product.reduce((total,item)=>{
+          if(item.colour.length>0 && total.every(el=>{return el.name!==item.colour[0].name}))
+            return [...total,item.colour[0]]
+          else
+            return total;
+        },[]);
+        setColours(colours);
       }
 
       const loginFormSubmit=async(e)=>{
@@ -125,6 +195,13 @@ const store = createStore(reducer);
         }
       }
 
+    
+    function rerender()
+    {
+        //console.log(store.getState())
+    }
+    store.subscribe(rerender)
+
       async function logOut(){
         const result = await fetch(API_URL+"customers/logout/"+user._id);
         const decode = await result.json();
@@ -134,13 +211,42 @@ const store = createStore(reducer);
         }
       }
 
+      async function addToFav(id){
+      
+        let isFavorite = store.getState().favorite.filter(item=>item._id===id).length>0
+        let productObj =store.getState().product.find(item=>item._id===id);
+        delete productObj.sizes;
+        const result = await fetch(API_URL+"favorite/"+user._id,{
+            method:isFavorite?"DELETE":"POST",
+            headers:{
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify(productObj)
+          });
+        const res = await result.json();
+        if(res)
+        {
+          //alert('fav updated');
+          promptNotification("Favorite list updated")
+          setTimeout(()=>{
+              hideNotification();
+          },3000)
+          console.log(res)
+          if(isFavorite)
+            dispatch({type:'REMOVE_FAVORITE',data:productObj});
+          else
+            dispatch({type:"ADD_TO_FAVORITE",data:res})
+          
+        }
+    }
+
       async function addToCart(productObj){
         const cartObject = {
-          products:[productObj],
+          product:[productObj],
           customer:user._id
           
         }
-        const result = await fetch(API_URL+"cart",{
+        const result = await fetch(API_URL+"cart/additem",{
           method:"POST",
           headers:{
             'Content-Type':'application/json'
@@ -150,15 +256,16 @@ const store = createStore(reducer);
         const res = await result.json();
         if(res)
         {
-          alert('cart updated');
+          promptNotification("Item added to your cart")
+          setTimeout(()=>{
+              hideNotification();
+          },3000)
+          //dispatch({type:'UPDATE_CART',data:res});
+          updateCart(res)
           setCart([...cart,productObj]);
         }
       }
 
-      async function removeFromCart(productObj){
-        const filteredProducts = cart.filter(product=>product._id!==productObj._id);
-        console.log(filteredProducts);
-      }
       function formFields(){
         return(
           <form className="login-form" onSubmit={loginFormSubmit}>
@@ -171,32 +278,39 @@ const store = createStore(reducer);
                 <input type="password" onChange={(e)=>setPassword(e.target.value)}/>
             </label>
             <input type="submit" value="Login"/>
-  </form> 
+          </form> 
         )
       }
     return (
-      <Provider store={store} className="App">
+      <Router>
         { showModal && <Modal closeModal={()=>setShowModal(false)}>{formFields()}</Modal>}
           <Header categories={categories} showUserInfo={showUserInfo} customer={user} cart={cart.product||{}} logOut={logOut} showUserDetails={showUserDetails}/>
 
         <div className="main-area">
           <div className="main-area-wrapper">
             {/* CATEGORY COLUMN AREA  */}
-            <Category categories={categories}/>
+            <Categories categories={categories}/>
             
-            <Router>
+            
               <Suspense fallback={<div>Loading...</div>}>
                 <Switch>
-                  <Route exact path="/cart" render={()=>(<Cart user={user}/>)} />
-                  {/* <Route exact path="/editInfo" render={()=>(<Customer user={user} setUser={setUser}/>)}/> */}
-                  <Route exact path="/editInfo" render={()=>(<CustomerContainer/>)}/>
-                  {/* <Route exact path="/product/:id" component={ProductDetail} /> */}
-                  <Route exact path="/product/:id" render={(routerProps)=>(<ProductDetail {...routerProps} addToCart={addToCart} removeFromCart={removeFromCart}/>)}/>
+                  <Route exact path="/" render={(routerProps)=>(<ProductSearch {...routerProps} addToFav={addToFav} colours={colours} brands={brands} />)}/>
                   
-                  <Route path="/" render={(routerProps)=>(<ProductSearch {...routerProps} setFilter={setFilter} filter={filter} colours={colours} brands={brands} products={products}/>)}/>
+                  {/* <Route exact path="/edit/:id" render={(routerProps)=>(<ProductEdit {...routerProps}/>)}/> */}
+                  {/* <Route exact path="/?params" render={()=>(<Cart user={user}/>)} /> */}
+                  <Route path="/favorite">
+                    <FavoriteProducts addToFav={addToFav}/>
+                  </Route>
+
+                  <Route path="/cart" render={()=>(<Cart user={user}/>)} />
+
+                  <Route path="/editInfo" render={()=>(<CustomerContainer/>)}/>
+
+                  <Route path="/product/:id" render={(routerProps)=>(<ProductDetail {...routerProps} addToCart={addToCart} addToFav={addToFav}/>)}/>
+                  
                 </Switch>
               </Suspense>
-            </Router>
+            
 
 
         </div>
@@ -204,8 +318,8 @@ const store = createStore(reducer);
 
         {/* FOOTER AREA */}
         <Footer/>
-      </Provider>
+        </Router>
     );
   }
 
-  export default App;
+  export default connect(mapStateToProps,mapDispatchToProps)(App);

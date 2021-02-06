@@ -1,24 +1,51 @@
 import React,{useEffect,useState} from 'react';
 import '../ProductDetails.css';
+import { useDispatch,useStore,connect} from 'react-redux';
+import {promptNotification,hideNotification} from '../redux/actions';
+const mapStateToProps =state=>({
+  ...state
+})
+const mapDispatchToProps=dispatch=>({
+  promptNotification:(message)=>dispatch(promptNotification(message)),
+  hideNotification:()=>dispatch(hideNotification())
+})
 
-function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
-    const [productId, setProductID]=useState({});
-    const [product, setProducts]= useState([]);
+function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotification,hideNotification},props){
+
+    const [product, setProduct]= useState({});
     const [selectedSize, setSelectedSize]=useState();
     const [sizes,setSizes]=useState({});
     const [sizeType, setSizeType]=useState();
+    const store = useStore();
+    
     useEffect(()=>{
-        getProducts();
-      },[id]);
-//console.log(props);
-    const getProducts=async()=>{
-      const response=await fetch("http://localhost:3001/products/"+id)
-      const data = await response.json();
+        getProduct();
+      },[]);
+
+    function rerender()
+    {
+        console.log(store.getState())
+    }
+    const listenForChanges =store.subscribe(rerender)
+    listenForChanges();
+    const getProduct=async()=>{
       
-      setProducts(data)
-      let sizes = groupBy(data.sizes, 'type');
-      setSizeType(Object.getOwnPropertyNames(sizes)[0]);
-      setSizes(sizes);
+      let productStore =store.getState().product.find(item=>item._id===id);
+      console.log(productStore==undefined)
+      if(productStore==undefined){
+        const response=await fetch("http://localhost:3001/products/"+id)
+        productStore = await response.json();
+        console.log(productStore)
+        setProduct(productStore)
+      }else{
+        setProduct(productStore)
+      }
+        console.log(productStore)
+        if(productStore!=undefined){
+        let sizes = groupBy(productStore.sizes, 'type');
+        setSizeType(Object.getOwnPropertyNames(sizes)[0]);
+        setSizes(sizes);
+      }
     };
  
     var groupBy = function(xs, key) {
@@ -31,7 +58,7 @@ function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
       const selectSize =(size)=>{
         if(!size.isAvailable)
         return;
-        
+
         if(selectedSize!=undefined && selectedSize===size)
         setSelectedSize({});
         else
@@ -51,26 +78,40 @@ function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
     //     }
     //   }, []);
       function beforeSendingToCart(){
-          if(!selectedSize)
-          return;
-          
+          if(selectedSize==undefined || JSON.stringify(selectedSize)===JSON.stringify({}))
+          {
+            promptNotification("Size is not selected")
+            setTimeout(()=>{
+                hideNotification();
+            },3000)
+            return;
+          }
           const newProduct = {...product};
           newProduct.sizes=[{"type":(sizeType.indexOf("93")>-1)?"UK":sizeType.toUpperCase(),"size":selectedSize.size}];
             addToCart(newProduct);
             
         //updateCart({"sizes":selectedSize,"id":product._id})
       }
+      function getAllColours(){
+        if(product.colour!=undefined && product.colour.length>0)
+        {
+          let str="";
+          product.colour.map((item,index)=>str+=item.name.toUpperCase()+" ");
+          return str;//product.colour.reduce((string,item,index)=>string+=item.name+((product.colour.length==0 || product.colour.length==index-1)?"":"/"))
+        }
+        return "";
+      }
         if(product!=undefined){
-            console.log(product)
+          //console.log("PRODUCT DETAIL")  
         return(
             <div className="product-detail-wrapper">
                 <div className="product-image">
                     {(product.images!=undefined)?
-                        <div class="slider">
+                        <div className="slider">
                             
-                            {product.images.map((image,index) =><a href={"#slide-"+(index+1)}>{index+1}</a> )}
-                            <div class="slides">
-                                {product.images.map((image,index) =><div id={"slide-"+(index+1)}>
+                            {product.images.map((image,index) =><a key={index} href={"#slide-"+(index+1)}>{index+1}</a> )}
+                            <div className="slides">
+                                {product.images.map((image,index) =><div key={index} id={"slide-"+(index+1)}>
                                                                     <img src={product.images[index]} />
                                                             </div> )}
                                
@@ -82,11 +123,11 @@ function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
                 <div className="product-options">
                     <span className="product-brand">{(product.brand!=undefined)?product.brand.name:""}</span>
                     <span className="product-caption">{product.name}</span>
-                    <span className="product-colour">WHITE</span>
+                    <span className="product-colour">{getAllColours()}</span>
                     <span className="product-price">{product.price}</span>
                     <div className="product-size-list">
                     {(sizes!=undefined)?
-                        Object.getOwnPropertyNames(sizes).map(x=>(x==="null")?"":<React.Fragment>
+                        Object.getOwnPropertyNames(sizes).map((x,index)=>(x==="null")?"":<React.Fragment key={index}>
                                                                         <input checked={x===sizeType} onClick={()=>{setSelectedSize({});setSizeType(x)}} type="radio" id={x} name="gender" value={x}/>
                                                                         <label for={x}>{(x.indexOf("93")>-1)?"UK":x}</label>
                                                                     </React.Fragment>)
@@ -101,7 +142,7 @@ function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
                     <div className="size-chart"></div>
                     <button className="btn" onClick={beforeSendingToCart}>ADD TO CART</button>
                     <div className="option-buttons">
-                        <button className="add-to-fav">FAV</button>
+                        <button className="add-to-fav" onClick={()=>addToFav(id)}>FAVORITE</button>
                         <button className="share">SHARE</button>
                     </div>
                     {(product.brandImage!=undefined)?
@@ -117,4 +158,4 @@ function ProductDetail ({match:{params:{id}},addToCart,removeFromCart},props){
         
 }
 
-export default ProductDetail;
+export default connect(mapStateToProps,mapDispatchToProps)(ProductDetail);

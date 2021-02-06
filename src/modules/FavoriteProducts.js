@@ -1,0 +1,26 @@
+import React from 'react';
+import { useDispatch,useStore,connect} from 'react-redux';
+import ProductCard from './ProductCard';
+
+export default function FavoriteProducts({addToFav}){
+    const store = useStore();
+    return (
+        <div className="product-area">
+                  <h1>Favorite List</h1>
+                    <div className="product-display">
+                        {store.getState().favorite.map(product => <ProductCard
+                            id={product._id}
+                            key={product._id}
+                            image={product.image}
+                            name={product.name}
+                            brand={product.brand}
+                            price={product.price}
+                            old_price={product.old_price}
+                            sale_percent={product.sale_percent}
+                            addToFav={addToFav}
+                            isFavorite={true}
+                        />) }  
+                      </div>
+                    </div>
+    )
+}

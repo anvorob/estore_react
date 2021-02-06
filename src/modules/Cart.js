@@ -1,45 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import CartItem from './CartItem'
-export default function Cart({user}){
-    const API_URL = 'http://localhost:3001/';
-    const [product, setProducts] = useState([]);
-    const [total, setTotal] = useState(0);
-    useEffect(()=>{
-        getCart();
-    },[user])
-    const getCart=async()=>{
-        if(user._id==undefined)
-        return;
-        const response = await fetch(API_URL+"cart/"+user._id,
-        {
-          method:"GET"
+import {updateCart,updateCartProducts,updateCartTotalPrice} from '../redux/actions';
+import { useStore,connect} from 'react-redux';
 
-        });
-        const res = await response.json();
-        if(res.length!==0){
-            setProducts(Object.values(res[0].product));
-            console.log(res[0]);
-            setTotal(res[0].totalPrice);
-        }
-      }
+const mapStateToProps =state=>({
+    ...state
+})
+const mapDispatchToProps=dispatch=>({
+    updateCart:(res)=>dispatch(updateCart(res)),
+    updateCartProducts:(products)=>dispatch(updateCartProducts(products)),
+    updateCartTotalPrice:(totalPrice)=>dispatch(updateCartTotalPrice(totalPrice))
+})
+
+function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice}){
+    const API_URL = 'http://localhost:3001/';
+    const store = useStore();
+    const [cart, setCart] = useState(store.getState().cart||{});
+    const [total,setTotal] = useState(getTotalFromCart());
+    
+    useEffect(()=>{
+        setTotal(getTotalFromCart())
+    },[cart])
+    function getTotalFromCart(){
+        return store.getState().cart.hasOwnProperty("totalPrice")?store.getState().cart.totalPrice:0;
+    }
+    function rerender()
+    {
+        setCart(store.getState().cart);
+        //console.log("RERENDER")
+        //console.log(store.getState())
+        
+    }
+    const re =store.subscribe(rerender)
 
     const getGST=(total)=>{
-        return parseInt(total)/100*15;
+        return parseFloat((parseInt(total)/100*15).toFixed(2));
     }
-    const deleteItem=async(id)=>{
-
-        console.log("Delete item")
-        const response = await fetch(API_URL+"cart/"+user._id+"/"+id,{method:"DELETE"});
+    const deleteItem=async(id,size)=>
+    {
+        const filteredProducts = cart.product.filter(product=>product._id===id && JSON.stringify(product.sizes)===JSON.stringify(size));
+        const response = await fetch(API_URL+"cart/"+user._id,
+        {
+            method:"DELETE",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body:JSON.stringify(filteredProducts)
+        }
+        );
         const res = await response.json();
-        if(res.length!==0){
-            setProducts(Object.values(res.product));
-            setTotal(res.totalPrice);
+        if(Object.keys(res).length!==0){
+            console.log(res)
+            updateCart(res)
+            setCart(res);
         }
     }
 
-    const updateItem=async(id)=>{
+    const updateItem=async()=>{
         let cart = {
-            product,
+            product:store.getState().cart.product.map(item=>({...item,updated:false})),
             customer:user._id
         }
         const response = await fetch(API_URL+"cart",{
@@ -51,16 +70,18 @@ export default function Cart({user}){
         });
         const res = await response.json();
         if(res.length!==0){
-            console.log(res);
+            updateCartProducts(Object.values(res.product))
+            updateCartTotalPrice(res.totalPrice)
         }
     }
-    const updateProductQty=(id,e)=>{
-
-        var prod =product.find(element=>element._id===id);
+    const updateProductQty=(id,size,e)=>{
+        let product = store.getState().cart.product;
+        var prod =product.find(element=>element._id===id && element.sizes[0].size===size[0].size && element.sizes[0].type===size[0].type);
+        prod.updated = true;
         var index =product.indexOf(prod);
         prod.qty=parseInt(e.target.value);
         product[index] = prod;
-        setProducts(Object.values(product));
+        updateCartProducts(Object.values(product));
     }
     
     return (
@@ -71,26 +92,32 @@ export default function Cart({user}){
             </div>
             <ul>
                 {
-                    product && product.map(product=><li><CartItem key={product._id} id={product._id}
-                                                                    name={product.name} 
-                                                                    price={product.price} 
-                                                                    size={product.sizes} 
-                                                                    image={product.image} 
-                                                                    colour={product.colour} 
-                                                                    qty={product.qty}
-                                                                    updateProductQty={updateProductQty}
-                                                                    deleteItem={deleteItem}
-                                                                    updateItem={updateItem}/></li>)    
+                      cart.hasOwnProperty("product") && cart.product.map((product,index)=><li key={index} ><CartItem id={product._id}
+                                    name={product.name} 
+                                    price={product.price} 
+                                    size={product.sizes} 
+                                    image={product.image} 
+                                    colour={product.colour} 
+                                    qty={product.qty}
+                                    updated={product.updated||false}
+                                    updateProductQty={updateProductQty}
+                                    deleteItem={deleteItem}
+                                    updateItem={updateItem}/></li>) 
                 }
             </ul>
             <div className="cart-summary">
                 <ul>
-                    <li>Sub total: ${total}</li>
-                    <li>Discount:</li>
-                    <li>GST: ${getGST(total)}</li>
-                    <li>Total: ${total+getGST(total)}</li>
+                    <li>Sub total: <span>${total-getGST(total)}</span></li>
+                    <li>Discount:<span>$0</span></li>
+                    <li>GST: <span>${getGST(total)}</span></li>
+                    <li><span className="cart-summary-total">Total: ${total}</span></li>
                 </ul>
+            </div>
+            <div >
+                <button style={{float:"right"}} className="btn">Submit</button>
             </div>
         </div>
     )
 }
+
+export default connect(mapStateToProps,mapDispatchToProps)(Cart)
