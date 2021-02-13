@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPen,faTrashAlt } from '@fortawesome/free-solid-svg-icons'
-export default function Address({address, onAddressSubmit,type}){
+import AddressView from './AddressView';
+export default function Address({address, onAddressSubmit,removeAddress,index}){
     
     //let InternalAddress ={};
     const [editState, setEditState] = useState(false);
     const [InternalAddress, setInternalAddress] = useState({});
     useEffect(()=>{
-        console.log(address);
         if(address!=undefined){
             
             setInternalAddress(address);
@@ -18,7 +18,6 @@ export default function Address({address, onAddressSubmit,type}){
     },[address])
     function onAddressSave(e){
         e.preventDefault();
-        InternalAddress.type=type;
         onAddressSubmit(InternalAddress);
         setEditState(false);
     }
@@ -35,16 +34,12 @@ export default function Address({address, onAddressSubmit,type}){
     }
     if(!editState)
         return(
-            <div className="address-display">
+            <AddressView address={InternalAddress}>
                 <div className="address-actions">
                     <div onClick={()=>{setEditState(true)}}><FontAwesomeIcon icon={faPen} /></div>
-                    <div onClick={()=>{setEditState(true)}}><FontAwesomeIcon icon={faTrashAlt} /></div>
+                    <div onClick={()=>{removeAddress(index)}}><FontAwesomeIcon icon={faTrashAlt} /></div>
                 </div>
-                <div>{InternalAddress.streetNumber}</div>
-                <div>{InternalAddress.companyName}</div>
-                <div>{InternalAddress.suburb}</div>
-                <div>{InternalAddress.city} {InternalAddress.postCode}</div>
-            </div>
+                </AddressView>
         )
     else
         return(

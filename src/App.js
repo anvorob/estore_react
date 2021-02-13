@@ -12,11 +12,11 @@
   import FavoriteProducts from './modules/FavoriteProducts';
   import ProductDetail from './modules/ProductDetail';
   import ProductSearch from './modules/ProductSearch';
-  import ProductEdit from './modules/ProductEdit'
-  //import Customer from './modules/Customer';
+  import ProductEdit from './modules/ProductEdit';
+  import OrderList from './modules/OrderList'
   import CustomerContainer from './modules/CustomerContainer';
-  import {promptNotification,hideNotification,goToPage,fetchProducts,updateCart,addToFilter} from './redux/actions';
-import product from './redux/rproduct';
+  import {promptNotification,hideNotification,goToPage,fetchProducts,updateCart,addToFilter,addCustomer,addToDisplayFilter} from './redux/actions';
+
 
   const mapStateToProps =state=>({
     ...state
@@ -27,17 +27,17 @@ const mapDispatchToProps=dispatch=>({
     goToPage:(page) => dispatch(goToPage(page)),
     fetchProducts:(products)=>dispatch(fetchProducts(products)),
     updateCart:(cart)=>dispatch(updateCart(cart)),
-    addToFilter:(filterObj)=>dispatch(addToFilter(filterObj))
+    addToFilter:(filterObj)=>dispatch(addToFilter(filterObj)),
+    addCustomer:(customerObj) => dispatch(addCustomer(customerObj)),
+    addToDisplayFilter:(filterObj)=>dispatch(addToDisplayFilter(filterObj))
 })
 
-  function App({hideNotification,promptNotification,goToPage,fetchProducts,updateCart,addToFilter}) {
-
-    const API_URL = 'http://localhost:3001/';
+  function App({hideNotification,promptNotification,goToPage,fetchProducts,updateCart,addToFilter,addCustomer,addToDisplayFilter}) {
+    const API_URL = process.env.REACT_APP_API_URL;
     const [categories, setCategories]= useState([]);
     const [colours, setColours]= useState([]);
     const [brands, setBrands] = useState([]);
     const [cart, setCart] = useState([]);
-    const [user, setUser] = useState({});
     const [showModal, setShowModal] = useState(false);
     const [email, setEmail] = useState("");
     const [password,setPassword] = useState("");
@@ -46,6 +46,8 @@ const mapDispatchToProps=dispatch=>({
     const dispatch = useDispatch();
     const store = useStore();
     const filterObj = store.getState().filter;
+    const user = store.getState().customer;
+
     useEffect(()=>{
         getCategories();
         if(Object.keys(getUrlVars()).length==0)
@@ -53,41 +55,56 @@ const mapDispatchToProps=dispatch=>({
         getBrands();
         getColours();
         getLocalCustomer();
-      },[]);
+      },[API_URL]);
 
       useEffect(()=>{
         const queryString = window.location;
         let urlObject = getUrlVars();
-        if(Object.keys(urlObject).every(key=>!store.getState().filter.hasOwnProperty(key))){
-          var filterObj = {};
-          Object.keys(urlObject).map(key=> filterObj[key]=urlObject[key]);
-          if(Object.keys(filterObj).length==0)
-          return;
-          // This is hack to delay url params parsing. Initial non filtered quiry comes after filtered.
-          setTimeout(()=>{
-            //dispatch({type:"ADD_TO_FILTER",data:filterObj})
-            addToFilter(filterObj)
-          },500)
+        console.log(Object.keys(urlObject).every(key=>!store.getState().filter.hasOwnProperty(key)))
+        // if(Object.keys(urlObject).every(key=>!store.getState().filter.hasOwnProperty(key))){
+        //   var filterObj1 = {};
           
-        }
+        //   Object.keys(urlObject).map(key=> filterObj1[key]=urlObject[key]);
+        //   if(Object.keys(filterObj1).length==0)
+        //   return;
+          
+        //   // This is hack to delay url params parsing. Initial non filtered quiry comes after filtered.
+        //   setTimeout(()=>{
+        //     //dispatch({type:"ADD_TO_FILTER",data:filterObj})
+        //     addToFilter(filterObj1)
+        //   },500)
+          
+        // }
+        var filterObj1 = {};
+          
+        Object.keys(urlObject).map(key=> filterObj1[key]=urlObject[key]);
+        if(Object.keys(filterObj1).length==0)
+        return;
+        
+        // This is hack to delay url params parsing. Initial non filtered quiry comes after filtered.
+        setTimeout(()=>{
+          addToFilter(filterObj1)
+        },500)
       },getUrlVars())
       function getUrlVars() {
         var vars = {};
         var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
-            vars[key] = value;
+            vars[key] = decodeURI(value);
         });
         return vars;
     }
     useEffect(()=>{
-      delete(filterObj.requestTimeStamp)
+      //delete(filterObj.requestTimeStamp)
       var filterStr = Object.keys(filterObj).map(key=> key+"="+filterObj[key]).join('&');
       if(window.location.pathname!=="/")
         return ;
         
         window.history.replaceState(window.history.state, "Title", filterStr.length==0?"/":"?"+filterStr);
+        if(!filterObj.update)
+        return;
+
         if(filterStr.length>0)
         filterStr="?"+filterStr;
-        console.log(filterStr)
         getProducts(filterStr);
       },[filterObj]);
     
@@ -108,9 +125,9 @@ const mapDispatchToProps=dispatch=>({
       }
       
       function getLocalCustomer(){
-        console.log("HERE in local customer"+localStorage['store_customer']);
+        // console.log("HERE in local customer"+localStorage['store_customer']);
         if(localStorage['store_customer']!="" && JSON.stringify(user)===JSON.stringify({}))
-        setUser(JSON.parse(localStorage['store_customer']))
+        addCustomer(JSON.parse(localStorage['store_customer']))
       }
 
       function showUserInfo(){
@@ -131,8 +148,7 @@ const mapDispatchToProps=dispatch=>({
 
         });
         const res = await response.json();
-        //console.log(res)
-        //dispatch({type:'UPDATE_CART',data:res[0]});
+        
         updateCart(res[0]);
         setCart(res);
       }
@@ -155,6 +171,9 @@ const mapDispatchToProps=dispatch=>({
       };
 
       const getBrands =async()=>{
+        // let filter = "";
+        // if(filterObj.hasOwnProperty("category"))
+        //   filter = "?category=Clothing";
         const response = await fetch(API_URL+"brands");
         const data = await response.json();
         //console.log(data);
@@ -188,7 +207,8 @@ const mapDispatchToProps=dispatch=>({
         {
           setShowModal(false);
           localStorage['store_customer']=JSON.stringify(result);
-          setUser(result);
+    
+          addCustomer(result)
         }
         else{
           // display failed login
@@ -207,7 +227,7 @@ const mapDispatchToProps=dispatch=>({
         const decode = await result.json();
         if(decode){
           localStorage["store_customer"]="";
-          setUser({});
+          addCustomer({})
         }
       }
 
@@ -260,7 +280,6 @@ const mapDispatchToProps=dispatch=>({
           setTimeout(()=>{
               hideNotification();
           },3000)
-          //dispatch({type:'UPDATE_CART',data:res});
           updateCart(res)
           setCart([...cart,productObj]);
         }
@@ -286,10 +305,10 @@ const mapDispatchToProps=dispatch=>({
         { showModal && <Modal closeModal={()=>setShowModal(false)}>{formFields()}</Modal>}
           <Header categories={categories} showUserInfo={showUserInfo} customer={user} cart={cart.product||{}} logOut={logOut} showUserDetails={showUserDetails}/>
 
-        <div className="main-area">
+        <div className="main-area" onClick={()=>addToDisplayFilter({displayDrop:false})}>
           <div className="main-area-wrapper">
             {/* CATEGORY COLUMN AREA  */}
-            <Categories categories={categories}/>
+            <Categories categories={categories} brands ={brands}/>
             
             
               <Suspense fallback={<div>Loading...</div>}>
@@ -301,6 +320,8 @@ const mapDispatchToProps=dispatch=>({
                   <Route path="/favorite">
                     <FavoriteProducts addToFav={addToFav}/>
                   </Route>
+
+                  <Route path="/orders" render={()=>(<OrderList user={user}/>)} />
 
                   <Route path="/cart" render={()=>(<Cart user={user}/>)} />
 

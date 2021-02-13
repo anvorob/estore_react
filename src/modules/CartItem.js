@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function CartItem({id,price,name,size,colour,image,qty,updateProductQty,deleteItem,updateItem,updated}){
+export default function CartItem({id,price,currency,name,size,colour,image,qty,updateProductQty,deleteItem,updateItem,updated}){
 
     return(
         <section className="cart-item">
@@ -14,7 +14,7 @@ export default function CartItem({id,price,name,size,colour,image,qty,updateProd
             </div>
             <div className="cart-item-price-qty">
                 <div className="cart-item-qty"><input type="number" value={qty??1} onChange={(e)=>updateProductQty(id,size,e)}/></div>
-                <div className="cart-item-price"><p>{price}</p></div>
+                <div className="cart-item-price"><p>{currency+""+price.toFixed(2)}</p></div>
                 <div className="cart-item-action">
                     {updated&&
                         <span onClick={updateItem}>Update</span>

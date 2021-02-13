@@ -1,20 +1,29 @@
 import React,{useEffect,useState} from 'react';
-import {useDispatch} from 'react-redux'
-function Category({category}){
-  const dispatch = useDispatch();  
+import {useDispatch,connect} from 'react-redux'
+import {addToFilter} from '../redux/actions'
+import { Link } from 'react-router-dom';
+
+const mapStateToProps =state=>({
+  ...state
+})
+const mapDispatchToProps=dispatch=>({
+  addToFilter:(filterObj)=>dispatch(addToFilter(filterObj))
+})
+
+function Category({category,addToFilter}){ 
     if(category==undefined)
     return "";
     
     return(
       
       <React.Fragment >
-        <span className="category-title" onClick={()=>dispatch({type:'ADD_TO_FILTER',data:{"category":category.name}})}>{category.name}</span>
+        <Link to="/" className="category-title" onClick={()=>addToFilter({"category":category.name})}>{category.name}</Link>
         {category.subCategory &&
-          <ul className="subcategory-items-list">{category.subCategory.map((cat,index)=><Category key={index} category={cat}/>)}</ul>
+          <ul className="subcategory-items-list">{category.subCategory.map((cat,index)=><Category key={index} category={cat} addToFilter={addToFilter}/>)}</ul>
         }
     </React.Fragment>
     );
 
 }
 
-export default Category;
+export default connect(mapStateToProps,mapDispatchToProps)(Category);

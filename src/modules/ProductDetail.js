@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import '../ProductDetails.css';
-import { useDispatch,useStore,connect} from 'react-redux';
+import { useStore,connect} from 'react-redux';
 import {promptNotification,hideNotification} from '../redux/actions';
 const mapStateToProps =state=>({
   ...state
@@ -15,6 +15,7 @@ function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotificati
     const [product, setProduct]= useState({});
     const [selectedSize, setSelectedSize]=useState();
     const [sizes,setSizes]=useState({});
+    const [selectedImage,setSelectedImage] = useState(0);
     const [sizeType, setSizeType]=useState();
     const store = useStore();
     
@@ -31,16 +32,14 @@ function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotificati
     const getProduct=async()=>{
       
       let productStore =store.getState().product.find(item=>item._id===id);
-      console.log(productStore==undefined)
       if(productStore==undefined){
-        const response=await fetch("http://localhost:3001/products/"+id)
+        const response=await fetch(process.env.REACT_APP_API_URL+""+id)
         productStore = await response.json();
-        console.log(productStore)
+        
         setProduct(productStore)
       }else{
         setProduct(productStore)
       }
-        console.log(productStore)
         if(productStore!=undefined){
         let sizes = groupBy(productStore.sizes, 'type');
         setSizeType(Object.getOwnPropertyNames(sizes)[0]);
@@ -60,23 +59,15 @@ function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotificati
         return;
 
         if(selectedSize!=undefined && selectedSize===size)
-        setSelectedSize({});
+          setSelectedSize({});
         else
-        setSelectedSize(size);
+          setSelectedSize(size);
       }
     
       const changeSizeType=(sizeType)=>{
         setSizeType(sizeType)
       }
-    //   useEffect(() => {
-    //     const script = document.createElement('script');
-    //     script.src = "/siema.js";
-    //     script.async = true;
-    //     document.body.appendChild(script);
-    //   return () => {
-    //       document.body.removeChild(script);
-    //     }
-    //   }, []);
+   
       function beforeSendingToCart(){
           if(selectedSize==undefined || JSON.stringify(selectedSize)===JSON.stringify({}))
           {
@@ -106,19 +97,18 @@ function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotificati
         return(
             <div className="product-detail-wrapper">
                 <div className="product-image">
-                    {(product.images!=undefined)?
-                        <div className="slider">
-                            
-                            {product.images.map((image,index) =><a key={index} href={"#slide-"+(index+1)}>{index+1}</a> )}
-                            <div className="slides">
-                                {product.images.map((image,index) =><div key={index} id={"slide-"+(index+1)}>
-                                                                    <img src={product.images[index]} />
-                                                            </div> )}
-                               
-                            </div>
-                        </div>
-                :<img src={product.image} />}
                     
+                  {(product.images!=undefined)?
+                          <div >
+                              <img className="image-preview-main" src={product.images[selectedImage]} />
+                              <div className="image-preview-wrapper">
+                                  {product.images.map((image,index) =><div className="image-preview-item" key={index} onClick={()=>setSelectedImage(index)}>
+                                                                      <img src={product.images[index]} />
+                                                              </div> )}
+                                
+                              </div>
+                          </div>
+                  :<img src={product.image} />}
                 </div>
                 <div className="product-options">
                     <span className="product-brand">{(product.brand!=undefined)?product.brand.name:""}</span>
@@ -127,10 +117,11 @@ function ProductDetail ({match:{params:{id}},addToCart,addToFav,promptNotificati
                     <span className="product-price">{product.price}</span>
                     <div className="product-size-list">
                     {(sizes!=undefined)?
-                        Object.getOwnPropertyNames(sizes).map((x,index)=>(x==="null")?"":<React.Fragment key={index}>
-                                                                        <input checked={x===sizeType} onClick={()=>{setSelectedSize({});setSizeType(x)}} type="radio" id={x} name="gender" value={x}/>
-                                                                        <label for={x}>{(x.indexOf("93")>-1)?"UK":x}</label>
-                                                                    </React.Fragment>)
+                        Object.getOwnPropertyNames(sizes).map((x,index)=>(x==="null")?""
+                                        :<React.Fragment key={index}>
+                                            <input checked={x===sizeType} onClick={()=>{setSelectedSize({});setSizeType(x)}} type="radio" id={x} name="gender" value={x}/>
+                                            <label for={x}>{(x.indexOf("93")>-1)?"UK":x}</label>
+                                        </React.Fragment>)
                         :""}
                     </div>
                     <ul className="size-options">

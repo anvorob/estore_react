@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import CartItem from './CartItem'
-import {updateCart,updateCartProducts,updateCartTotalPrice} from '../redux/actions';
+import {updateCart,updateCartProducts,updateCartTotalPrice,updateCartBillingAddress,updateCartDeliveryAddress,promptNotification,hideNotification} from '../redux/actions';
 import { useStore,connect} from 'react-redux';
+import AddressView from './AddressView';
 
 const mapStateToProps =state=>({
     ...state
@@ -9,30 +10,78 @@ const mapStateToProps =state=>({
 const mapDispatchToProps=dispatch=>({
     updateCart:(res)=>dispatch(updateCart(res)),
     updateCartProducts:(products)=>dispatch(updateCartProducts(products)),
-    updateCartTotalPrice:(totalPrice)=>dispatch(updateCartTotalPrice(totalPrice))
+    updateCartTotalPrice:(totalPrice)=>dispatch(updateCartTotalPrice(totalPrice)),
+    updateCartBillingAddress:(address) => dispatch(updateCartBillingAddress(address)),
+    updateCartDeliveryAddress:(address) => dispatch(updateCartDeliveryAddress(address)),
+    promptNotification:(message)=>dispatch(promptNotification(message)),
+    hideNotification:()=>dispatch(hideNotification())
 })
 
-function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice}){
-    const API_URL = 'http://localhost:3001/';
+function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice,updateCartBillingAddress,updateCartDeliveryAddress,promptNotification,hideNotification}){
+    const API_URL = process.env.REACT_APP_API_URL;
     const store = useStore();
-    const [cart, setCart] = useState(store.getState().cart||{});
     const [total,setTotal] = useState(getTotalFromCart());
-    
+    let customer = store.getState().customer;
+    let cart =store.getState().cart;
+
     useEffect(()=>{
         setTotal(getTotalFromCart())
     },[cart])
     function getTotalFromCart(){
         return store.getState().cart.hasOwnProperty("totalPrice")?store.getState().cart.totalPrice:0;
     }
-    function rerender()
+    
+    async function submitCart()
     {
-        setCart(store.getState().cart);
-        //console.log("RERENDER")
-        //console.log(store.getState())
-        
+        console.log(cart)
+        const response = await fetch(API_URL+"cart/submit/"+cart.customer,
+        {
+            method:"GET",
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+        );
+        const res = await response.json();
+        window.scrollTo(0, 0);
+        if(Object.keys(res).length!==0){
+            promptNotification("Order was submitted")
+            setTimeout(()=>{
+                hideNotification();
+            },3000)
+        }
     }
-    const re =store.subscribe(rerender)
 
+    async function selectDeliveryAddress(address){
+        
+        updateCartDeliveryAddress(address)
+        const response = await fetch(API_URL+"cart",{
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                method:"POST",
+                body:JSON.stringify(store.getState().cart) 
+        });
+        const res = await response.json();
+        if(res.length!==0){
+            console.log(res)
+        }
+    }
+    async function selectBillingAddress(address){
+        
+        updateCartBillingAddress(address)
+        const response = await fetch(API_URL+"cart",{
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                method:"POST",
+                body:JSON.stringify(store.getState().cart) 
+        });
+        const res = await response.json();
+        if(res.length!==0){
+            console.log(res)
+        }
+    }
     const getGST=(total)=>{
         return parseFloat((parseInt(total)/100*15).toFixed(2));
     }
@@ -52,7 +101,6 @@ function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice}){
         if(Object.keys(res).length!==0){
             console.log(res)
             updateCart(res)
-            setCart(res);
         }
     }
 
@@ -89,12 +137,25 @@ function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice}){
             <h1>Cart</h1>
             <div className="cart-delivery">
                 <h1>Address</h1>
+                <div>
+                    <h2>Billing</h2>
+                    <div className="customer-address-wrap">
+                        {customer.billingAddress && customer.billingAddress.map(address=><AddressView key={address._id} isSelected={(cart.billingAddress && address._id+""===cart.billingAddress._id+"")} onClick={()=>{selectBillingAddress(address)}}  address={address} />)}
+                    </div>
+                </div>
+                <div>
+                    <h2>Shipping</h2>
+                    <div className="customer-address-wrap">
+                        {customer.deliveryAddress && customer.deliveryAddress.map(address=><AddressView key={address._id} isSelected={(cart.deliveryAddress && address._id+""===cart.deliveryAddress._id+"")} onClick={()=>{selectDeliveryAddress(address)}} address={address} />)}
+                    </div>
+                </div>
             </div>
             <ul>
                 {
                       cart.hasOwnProperty("product") && cart.product.map((product,index)=><li key={index} ><CartItem id={product._id}
                                     name={product.name} 
                                     price={product.price} 
+                                    currency={product.currency}
                                     size={product.sizes} 
                                     image={product.image} 
                                     colour={product.colour} 
@@ -114,7 +175,7 @@ function Cart({user,updateCart,updateCartProducts,updateCartTotalPrice}){
                 </ul>
             </div>
             <div >
-                <button style={{float:"right"}} className="btn">Submit</button>
+                <button style={{float:"right"}} className="btn" onClick={()=>{submitCart()}}>Submit</button>
             </div>
         </div>
     )

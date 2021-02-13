@@ -8,7 +8,7 @@ function ProductEdit({match:{params:{id}},addToCart,addToFav})
     const [price, setPrice] =useState("")
     const [sizes, setSizes] =useState([])
     const [image, setImage] =useState()
-    const API_URL = 'http://localhost:3001/';
+    const API_URL = process.env.REACT_APP_API_URL;
     const getProduct=async(id)=>{
         const response=await fetch(API_URL+"products/"+id,{
             method:"GET"

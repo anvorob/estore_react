@@ -4,24 +4,30 @@ import { faChevronDown, faTimes } from '@fortawesome/free-solid-svg-icons'
 import ProductCard from './ProductCard';
 import Pagination from './Pagination'
 import Dropdown from './Dropdown';
+import SorterDropdown from './SorterDropdown';
 import RangeSlider from './RangeSlider';
 import { useStore,useDispatch,connect} from 'react-redux';
-import {setOffset,addToFilter} from '../redux/actions'
+import {setOffset,addToFilter,addRequestTimeStamp,removeFromFilter,loadFilter,fetchProducts} from '../redux/actions'
 import { Link } from 'react-router-dom';
+
 
 const mapStateToProps =state=>({
     ...state
 })
 const mapDispatchToProps=dispatch=>({
     addToFilter:(filterObj)=>dispatch(addToFilter(filterObj)),
-    setOffset:(offset) => dispatch(setOffset(offset))
+    setOffset:(offset) => dispatch(setOffset(offset)),
+    addRequestTimeStamp:(timestamp) => dispatch(addRequestTimeStamp(timestamp)),
+    removeFromFilter:(filterObj)=>dispatch(removeFromFilter(filterObj)),
+    loadFilter:(filterObj)=>dispatch(loadFilter(filterObj)),
+    fetchProducts:(products)=>dispatch(fetchProducts(products)),
 })
 
-function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
+function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter,addRequestTimeStamp,loadFilter,removeFromFilter,fetchProducts}){
     const [valueRange,setValue] = useState([0,0])
     const [marks, setMarks] = useState([{}]);
     const store = useStore();
-    const dispatch = useDispatch();
+    
     var timeoutID =null;
     // const [products,setProducts] =useState(store.getState().product);
     // function render(){
@@ -29,20 +35,34 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
     // }
     // console.log(store.getState().product)
     // store.subscribe(render);
-    let products =store.getState().product;
+    let products =  store.getState().product;
     let favorites = store.getState().favorite;
     let filterObj = store.getState().filter;
+    let timestamp = store.getState().timestamp;
+    if(filterObj.hasOwnProperty("category"))
+        brands = brands.filter(item=>item.category+""===filterObj.category+"")
+    
+    // console.log(products)
+    function getTagValue(key,value){
+        if(Array.isArray(value))
+        {
+            return value.join('-')
+        }
+        else if(key==="sale" && value+"" ==="true")
+            return "SALE"
+        else if(typeof value==='string')
+            return value.toLowerCase()
+        else
+            return value
+    }
     let page = filterObj.page||1;
     let offset =filterObj.offset==undefined?10:filterObj.offset; 
-    var uniqueBrands = [];
     var uniquePrices = [];
     let arrayOfMarks =[];
     
     useEffect(()=>{
         
         if(products !== undefined){
-            //uniqueBrands = [...new Set(products.map(product => product.brand))];
-            //console.log(products.map(product =>(product.price===undefined)?product:parseInt(product.price.replace('$',''))))
             uniquePrices = [...new Set(products.map(product =>product.price))]
             
             let minPrice = Math.min(...uniquePrices);
@@ -53,20 +73,21 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
             setMarks([0,maxPrice+50]);
         }
     },[products])
-    if(products !== undefined)
-    {
-        uniqueBrands = [...new Set(products.map(product => product.brand))]; 
-    }
+    // if(products !== undefined)
+    // {
+    //     uniqueBrands = [...new Set(products.map(product => product.brand))]; 
+    //     console.log(uniqueBrands)
+    // }
     const handleChange = (event, newValue) => {
         setValue(newValue);
         
-        clearTimeout(filterObj.requestTimeStamp);
+        clearTimeout(timestamp.timeoutID);
 
         // Make a new timeout set to go off in 1000ms (1 second)
         let timeout = setTimeout(function () {
             addToFilter({"price-min":newValue[0],"price-max":newValue[1]})
         }, 1000);
-        addToFilter({"requestTimeStamp":timeout})
+        addRequestTimeStamp({"timeoutID":timeout})
         
       };
       
@@ -102,7 +123,7 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
                     filterObj.hasOwnProperty("tag")&& Object.keys(filterObj).map(key=>(key==="tag"?<Link to={"/"+key}>/ {filterObj[key]}</Link>:null))
                 }
                 {
-                    Object.keys(filterObj).map(key=>(key!=="tag"&& key!=="category" && key!=="page" && key!=="offset" && key!=="price-max" && key!=="price-min"?<Link to={"/"+key}>/ {filterObj[key]}</Link>:null))
+                    Object.keys(filterObj).map(key=>(key!=="tag"&& key!=="category" && key!=="page" && key!=="update" && key!=="offset" && key!=="price-max" && key!=="price-min" && key!=="sale"?<Link to={"/"+key}>/ {filterObj[key]}</Link>:null))
                 }
                 
             </div>
@@ -120,10 +141,10 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
             <div className="filter-boxes">
             <RangeSlider entityName="price" marks={marks} valueRange={valueRange} handleChange={handleChange} valuetext={valuetext}/>
                
-                <Dropdown entityName="colour" itemList={colours} removeFilterItem={removeFilterItem} />
-                <Dropdown entityName="brand" itemList={brands} removeFilterItem={removeFilterItem} />
+                <Dropdown entityName="colour" itemList={colours} removeFilterItem={removeFilterItem} selectItem={addToFilter} clearSelection={removeFromFilter} />
+                <Dropdown entityName="brand" itemList={brands} removeFilterItem={removeFilterItem} selectItem={addToFilter} clearSelection={removeFromFilter} />
                 
-                <div className="filter-box filter-box-regular">
+                <div className="filter-box filter-box-regular disabled">
                     <span>Store</span>
                     <FontAwesomeIcon icon={faChevronDown} />
                 </div>
@@ -132,12 +153,12 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
             <div className="tags">
                 {
                     Object.entries(filterObj).map(([key,value])=>{
-                        if(key=="page" || key=="offset")
+                        if(key=="page" || key=="offset" || key=="update")
                         return"";
                         return (
                             <div className="tag" key={key}>
-                                <span className="tagTitle">{(Array.isArray(value))?value.join('-'):(typeof value==='string')?value.toLowerCase():value}</span>
-                                <FontAwesomeIcon onClick={()=>dispatch({type:"REMOVE_FROM_FILTER",data:key})} icon={faTimes} />
+                                <span className="tagTitle">{getTagValue(key,value)}</span>
+                                <FontAwesomeIcon onClick={()=>removeFromFilter(key)} icon={faTimes} />
                             </div>
                         )
                     })
@@ -145,28 +166,30 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
                 
                 <div className="tag clear-tag">
                     <span className="tagTitle" >Reset all</span>
-                    <FontAwesomeIcon icon={faTimes} onClick={()=>dispatch({type:"LOAD_FILTER",data:{}})} />
+                    <FontAwesomeIcon icon={faTimes} onClick={()=>loadFilter({})} />
                 </div>
             </div>
 
             <div className="result-counter">
                 <span>{ ((page-1)*offset+1)+" - "+(((page)*offset<products.length)?(page)*offset:products.length) +" of "+ (products!=undefined?products.length.toLocaleString():0)} PRODUCTS</span>
                 <select value={offset} onChange={(e)=>setOffset(e.target.value)}>
-                    <option key="1" value="0">All</option>
-                    <option key="2" value="10">10</option>
-                    <option key="3" value="20">20</option>
-                    <option key="4" value="40">40</option>
+                    {/* <option key="1" value="0">All</option> */}
+                    <option key="2" value="10">Size per page: 10</option>
+                    <option key="3" value="20">Size per page: 20</option>
+                    <option key="4" value="40">Size per page: 40</option>
                 </select>
                 <div className="result-sort">
-                    Sort by:popular
-                    <FontAwesomeIcon icon={faChevronDown} />
+                    {/* Sort by:popular  */}
+                    <SorterDropdown entityName="Sort by" itemList={brands} fetchProducts={fetchProducts} selectItem={addToFilter}  />
+                
                 </div>
             </div>
 
             <div className="product-display">
 
                 {(products != undefined) ?
-                    products.slice(((page-1)*offset),(page)*offset).map(product => <ProductCard
+                    products.slice(((page-1)*offset),(page)*offset).map(product => 
+                    <ProductCard
                         id={product._id}
                         key={product._id}
                         image={product.image}
@@ -175,7 +198,7 @@ function ProductSearch ({colours,brands,addToFav,setOffset,addToFilter}){
                         price={product.price}
                         currency={product.currency}
                         price_origin={product.price_origin}
-                        old_price={product.old_price}
+                        
                         sale_percent={product.sale_percent}
                         addToFav={addToFav}
                         isFavorite={favorites.filter(item=>item._id+""===product._id+"").length>0}

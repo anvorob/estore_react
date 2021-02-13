@@ -4,7 +4,7 @@ import { faHeart,faUser,faSearch } from '@fortawesome/free-solid-svg-icons'
 import { useStore,connect} from 'react-redux';
 import { Link } from 'react-router-dom';
 import NotificationBox from './NotificationBox';
-import {addToFilter,loadFilter,removeFromFilter} from '../redux/actions'
+import {addToFilter,loadFilter,removeFromFilter,addToDisplayFilter} from '../redux/actions'
 
 const mapStateToProps =state=>({
     ...state
@@ -12,16 +12,17 @@ const mapStateToProps =state=>({
 const mapDispatchToProps=dispatch=>({
     addToFilter:(filterObj)=>dispatch(addToFilter(filterObj)),
     loadFilter:(filterObj)=>dispatch(loadFilter(filterObj)),
-    removeFromFilter:(filterObj)=>dispatch(removeFromFilter(filterObj))
+    removeFromFilter:(filterObj)=>dispatch(removeFromFilter(filterObj)),
+    addToDisplayFilter:(filterObj)=>dispatch(addToDisplayFilter(filterObj))
 })
 
 function Header(props){
-    const {categories,showUserInfo,customer,logOut,showUserDetails,cart,addToFilter,loadFilter,removeFromFilter} = props;
+    const {categories,showUserInfo,customer,logOut,showUserDetails,cart,addToFilter,loadFilter,removeFromFilter,addToDisplayFilter} = props;
     let timeout = null;
     const store = useStore();
     const numberOfFavItems = store.getState().favorite.length;
     const notification = store.getState().notification;
-
+    const products = store.getState().product;
     // function rerender()
     // {
     //     console.log(store.getState())
@@ -44,7 +45,7 @@ function Header(props){
         <React.Fragment>
             
             {/* HEADER AREA  */}
-            <header className="header">
+            <header className="header"  onClick={()=>addToDisplayFilter({displayDrop:false})}>
                 <div className="header-container">
                 <ul className="genderLinks">
                     <li>
@@ -64,7 +65,7 @@ function Header(props){
                     { showUserDetails &&
                             <ul className="userDetails">
                                 <li><Link to="/editInfo">Edit Details</Link></li>
-                                <li>My Orders</li>
+                                <li><Link to="/orders">My Orders</Link></li>
                                 <li><Link to="/cart">Cart</Link></li>
                                 <li onClick={logOut}>Logout</li>
                             </ul>
@@ -76,7 +77,7 @@ function Header(props){
             </header>
 
             {/* SUB HEADER AREA  */}
-            <div className="sub-header">
+            <div className="sub-header" onClick={()=>addToDisplayFilter({displayDrop:false})}>
                 <div className="sub-header-container">
                     {   notification.isVisible &&  
                         <NotificationBox>
@@ -85,7 +86,7 @@ function Header(props){
                     }
                     <ul className="sub-categories">
                         {categories.map((cat,index)=><li key={index}><Link to="/" onClick={()=>addToFilter({"category":cat.name})}>{cat.name.toUpperCase()}</Link></li>)}
-                        
+                        {products.filter(item=>item.price_origin!==undefined || item.price_origin!==null).length>0 && <li><Link to="/" className="sale-link" onClick={()=>addToFilter({"sale":true})}>SALE</Link></li>}
                     </ul>
                     <div className="searchBar">
                         <FontAwesomeIcon icon={faSearch}/>

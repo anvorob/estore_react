@@ -3,8 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faHeart } from '@fortawesome/free-solid-svg-icons'
 //import {useStore} from 'react-redux'
 import {Link} from 'react-router-dom'
-function ProductCard ({id,image,name,brand,price,old_price,currency,price_origin,sale_percent,isFavorite,addToFav}){
-        
+function ProductCard ({id,image,name,brand,price,currency,price_origin,sale_percent,isFavorite,addToFav}){
+
         return(
             <Link className="product-card" to={{ pathname: '/product/'+id, state: id }}>
                     <div className="image-area">
@@ -19,7 +19,8 @@ function ProductCard ({id,image,name,brand,price,old_price,currency,price_origin
                     <div className="product-caption">
                         <div className="product-price-area">
                         
-                        {(price_origin!=undefined)?
+                        {
+                        (price_origin)?
                         <React.Fragment>
                             <span className="product-price sale-price">{currency+""+price.toFixed(2)}</span>
                             <span className="product-price old-price">{currency+""+price_origin.toFixed(2)}</span>

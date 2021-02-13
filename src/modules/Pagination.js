@@ -12,8 +12,8 @@ const mapDispatchToProps=dispatch=>({
 })
 function Pagination({nextPage,previousPage,goToPage}){
     const store=useStore();
-    const currentPage = store.getState().filter.page||1;
-    const offset = store.getState().filter.offset==undefined?10:store.getState().filter.offset;
+    const currentPage = parseInt(store.getState().filter.page)||1;
+    const offset = store.getState().filter.offset==undefined?10:parseInt(store.getState().filter.offset);
     const productQty = store.getState().product.length||0;
 
     function getPageList(){
@@ -22,10 +22,10 @@ function Pagination({nextPage,previousPage,goToPage}){
         {
             listHTML.push(<li key={i} className={(i==currentPage?"currentPage":"")} onClick={()=>goToPage(i)}>{i}</li>);
         }
-        // console.log(currentPage);
-        // console.log(Math.ceil(parseInt(productQty)/parseInt(offset)))
+        
         return listHTML;
     }
+
     return(
         <ul className="page-navigation-wrapper">
             <li onClick={()=>(currentPage-1<1)?false:previousPage(currentPage-1)} className={((currentPage-1<1)?"disabled ":"")+"page-navigation-step"}>BACK</li>
